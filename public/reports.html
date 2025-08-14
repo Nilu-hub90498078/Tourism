@@ -1,40 +1,77 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Submitted Asset Reports</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="report-page-body">
-    <div id="report-display-container">
-        <div class="page-header">
-            <h2 id="report-title">Loading Reports...</h2>
-            <button onclick="window.location.href='index.html'" class="back-button">← Back to Map</button>
-        </div>
-        <div class="search-container">
-            <!-- Updated placeholder text -->
-            <input type="text" id="search-input" placeholder="Search by place name...">
-        </div>
-        <div id="report-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Place Name</th>
-                        <th>Asset Type</th>
-                        <!-- REMOVED Country Column -->
-                        <th>Visited?</th>
-                        <th>Satisfaction</th>
-                        <th>Date Submitted</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="report-table-body">
-                    <!-- Data will be inserted here by JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <script src="reports.js"></script>
-</body>
-</html>
+document.addEventListener('DOMContentLoaded', () => {
+const reportTitle = document.getElementById('report-title');
+const reportTableBody = document.getElementById('report-table-body');
+const searchInput = document.getElementById('search-input');
+const uploadBtn = document.getElementById('upload-data-btn');
+const uploadContainer = document.getElementById('upload-container');
+
+let allReports = [];
+
+const renderTable = (reports) => {
+reportTableBody.innerHTML = '';
+if (reports.length === 0) {
+reportTableBody.innerHTML = '<tr>
+    <td colspan="6">No reports found.</td>
+</tr>';
+return;
+}
+
+reports.forEach(report => {
+const row = document.createElement('tr');
+row.dataset.placeName = report.placeName;
+
+row.innerHTML = `
+<td>${report.placeName || 'N/A'}</td>
+<td>${report.assetType || 'N/A'}</td>
+<td>${report.hasVisited || 'N/A'}</td>
+<td>${report.overallSatisfaction ? `${report.overallSatisfaction} / 5` : 'N/A'}</td>
+<td>${new Date(report.createdAt).toLocaleDateString()}</td>
+<td><button class="analysis-btn">View Analysis</button></td>
+`;
+reportTableBody.appendChild(row);
+});
+};
+
+const fetchReports = async () => {
+try {
+const response = await fetch('/api/assets');
+if (!response.ok) throw new Error('Failed to fetch data');
+
+allReports = await response.json();
+reportTitle.textContent = 'All Submitted Asset Reports';
+renderTable(allReports);
+
+} catch (error) {
+console.error('Error fetching reports:', error);
+reportTitle.textContent = 'Failed to load reports';
+reportTableBody.innerHTML = `<tr>
+    <td colspan="6">${error.message}</td>
+</tr>`;
+}
+};
+
+// --- EVENT LISTENERS ---
+searchInput.addEventListener('input', (e) => {
+const searchTerm = e.target.value.toLowerCase();
+const filteredReports = allReports.filter(report =>
+report.placeName && report.placeName.toLowerCase().includes(searchTerm)
+);
+renderTable(filteredReports);
+});
+
+reportTableBody.addEventListener('click', (e) => {
+if (e.target.classList.contains('analysis-btn')) {
+const row = e.target.closest('tr');
+const placeName = row.dataset.placeName;
+if (placeName) {
+window.location.href = `analysis.html?placeName=${encodeURIComponent(placeName)}`;
+}
+}
+});
+
+uploadBtn.addEventListener('click', () => {
+uploadContainer.classList.toggle('hidden');
+});
+
+fetchReports();
+});
